@@ -1,0 +1,46 @@
+name: Release
+
+# Push a tag like v26.2-1 and this builds the server jar and publishes it as a GitHub release.
+on:
+  push:
+    tags: [ "v*" ]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Git user for patching
+        run: git config --global user.email "actions@github.com" && git config --global user.name "Github Actions"
+      - name: Apply patches
+        run: ./gradlew applyAllPatches --stacktrace
+      - name: Build the server jar
+        run: ./gradlew :fork-server:createPaperclipJar --stacktrace
+      - name: Name the jar
+        run: |
+          MC=$(grep '^mcVersion=' gradle.properties | cut -d= -f2)
+          mkdir -p out
+          cp fork-server/build/libs/*-paperclip-*.jar "out/ashlar-$MC.jar"
+          cd out && sha256sum "ashlar-$MC.jar" > "ashlar-$MC.jar.sha256"
+          echo "MC=$MC" >> "$GITHUB_ENV"
+      - name: Publish the release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Ashlar ${{ env.MC }} (${{ github.ref_name }})
+          body: |
+            Ashlar for Minecraft ${{ env.MC }}. Needs Java 25. Players on Java 1.8 to 26.x can join.
+            Download `ashlar-${{ env.MC }}.jar` below. More on https://craftrank.org/ashlar
+          files: |
+            out/ashlar-${{ env.MC }}.jar
+            out/ashlar-${{ env.MC }}.jar.sha256
