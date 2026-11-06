@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Fri, 6 Nov 2026 22:42:08 +0200
+Subject: [PATCH] Ashlar start message
+
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index 68151ce05e7009f28dda0470c744920cbd5f4a27..e4a3d897c1504ea5ddcb1cf987f674ebd01632ee 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1289,13 +1289,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             // Paper end
+             org.spigotmc.WatchdogThread.hasStarted = true; // Paper
+             // Paper start - Add onboarding message for initial server start
+-            if (io.papermc.paper.configuration.GlobalConfiguration.isFirstStart) {
+-                LOGGER.info("*************************************************************************************");
+-                LOGGER.info("This is the first time you're starting this server.");
+-                LOGGER.info("It's recommended you read our 'Getting Started' documentation for guidance.");
+-                LOGGER.info("View this and more helpful information here: https://docs.papermc.io/paper/next-steps");
+-                LOGGER.info("*************************************************************************************");
+-            }
++            org.craftrank.ashlar.Ashlar.banner(io.papermc.paper.configuration.GlobalConfiguration.isFirstStart); // Ashlar - own start message
+             // Paper end - Add onboarding message for initial server start
+             // Paper start - Improve outdated version checking
+             if (System.getProperty("paper.disableStartupVersionCheck") == null && io.papermc.paper.configuration.GlobalConfiguration.get().updateChecker.enabled) {

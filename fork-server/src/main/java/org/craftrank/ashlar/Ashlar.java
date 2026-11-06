@@ -59,6 +59,33 @@ public final class Ashlar {
         }
     }
 
+    /** The box printed when the server is ready, with tips on the first start. Same logger as the vanilla start lines, so no prefix. */
+    public static void banner(boolean firstStart) {
+        Logger out = LoggerFactory.getLogger("net.minecraft.server.MinecraftServer");
+        String line = "*".repeat(85);
+        out.info(line);
+        if (firstStart) {
+            out.info("This is the first time you're starting this server. Welcome to Ashlar!");
+            out.info("Tip: /ashlar preset survival (or smp, skyblock, minigames) writes tuned settings, then restart.");
+            out.info("Paper's getting started guide still applies: https://docs.papermc.io/paper/next-steps");
+            out.info("");
+        }
+        out.info("Ashlar for Minecraft {} is running. Paper plugins work as they are.", Bukkit.getMinecraftVersion());
+        StartState st = StartState.read(instance);
+        out.info("Multi-version {}   Anti-bot {}   Spam limit {}   Votes {}", st.via, st.antiBot, st.spam, st.votes);
+        out.info("Settings: ashlar.yml   Commands: /ashlar, /ashlar lag, /ashlar preset <name>");
+        out.info("Website: https://craftrank.org/ashlar   Source: https://github.com/Kypersw/ashlar");
+        out.info(line);
+    }
+
+    private record StartState(String via, String antiBot, String spam, String votes) {
+        static StartState read(@org.jspecify.annotations.Nullable Ashlar a) {
+            String via = Bukkit.getPluginManager().isPluginEnabled("ViaVersion") ? "on (1.8 to 26.x)" : "off";
+            if (a == null) return new StartState(via, "?", "?", "?");
+            return new StartState(via, onOff(a.cfg.antiBot), onOff(a.cfg.cmdLimit), a.cfg.votes ? "on, port " + a.cfg.votePort : "off");
+        }
+    }
+
     public static synchronized void shutdown() {
         if (instance == null) return;
         instance.distance.stop();
