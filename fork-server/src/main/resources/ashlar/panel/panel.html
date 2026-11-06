@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Ashlar panel</title>
+<link rel="stylesheet" href="/panel.css">
+<script src="/panel.js" defer></script>
+</head>
+<body>
+
+<form id="signin" hidden>
+  <h1>Ashlar</h1>
+  <p>Sign in with the panel token. Type <code>ashlar panel</code> in the server console to see it.</p>
+  <label for="token">Token</label>
+  <input id="token" type="password" autocomplete="current-password" required>
+  <button type="submit">Sign in</button>
+  <p id="signin-msg" class="msg" role="alert"></p>
+</form>
+
+<div id="app" hidden>
+  <header>
+    <strong>Ashlar</strong>
+    <span id="ver"></span>
+    <span id="stats"></span>
+    <button id="signout" class="plain" type="button">Sign out</button>
+  </header>
+
+  <main>
+    <section id="console-box">
+      <h2>Console</h2>
+      <pre id="log" tabindex="0" aria-live="off"></pre>
+      <form id="cmd">
+        <input id="cmd-in" autocomplete="off" placeholder="Command, e.g. say hello" aria-label="Console command">
+        <button type="submit">Run</button>
+      </form>
+      <p id="cmd-msg" class="msg" role="status"></p>
+    </section>
+
+    <aside>
+      <section>
+        <h2>Players <span id="pcount" class="dim"></span></h2>
+        <table id="players"><tbody></tbody></table>
+        <p id="noplayers" class="dim">Nobody is online.</p>
+      </section>
+
+      <section>
+        <h2>Worlds</h2>
+        <table id="worlds">
+          <thead><tr><th>World</th><th>Chunks</th><th>Entities</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>Settings</h2>
+        <p class="dim">Saved to ashlar.yml right away.</p>
+        <ul id="switches"></ul>
+      </section>
+
+      <section>
+        <h2>Backups</h2>
+        <ul id="backups"></ul>
+        <button id="backup-now" type="button">Back up now</button>
+        <p id="backup-msg" class="msg" role="status"></p>
+      </section>
+
+      <section>
+        <h2>Status</h2>
+        <ul id="lines" class="dim"></ul>
+      </section>
+    </aside>
+  </main>
+</div>
+
+</body>
+</html>

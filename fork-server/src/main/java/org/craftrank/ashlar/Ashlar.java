@@ -30,6 +30,14 @@ public final class Ashlar {
     private final DynamicDistance distance;
     private final Guard guard;
     private final AshlarVotes votes;
+    private final Pregen pregen;
+    private final ExploitGuard exploits;
+    private final Bans bans;
+    private final Auth auth;
+    final Backup backup;
+    private final WebPanel panel;
+    private final Updater updater;
+    private String panelKey = "";
 
     private Ashlar(Plugin plugin) {
         this.plugin = plugin;
@@ -38,6 +46,14 @@ public final class Ashlar {
         this.distance = new DynamicDistance(this.cfg);
         this.guard = new Guard(this.cfg, plugin);
         this.votes = new AshlarVotes(this.cfg, plugin);
+        this.pregen = new Pregen(this.cfg);
+        this.exploits = new ExploitGuard(this.cfg);
+        this.bans = new Bans(this.cfg);
+        this.guard.bans = this.bans;
+        this.auth = new Auth(this.cfg, plugin, this.bans);
+        this.backup = new Backup(this.cfg, plugin);
+        this.panel = new WebPanel(this, this.cfg, plugin);
+        this.updater = new Updater(this.cfg, plugin);
     }
 
     /** Called from the server once, after the worlds are loaded. */
@@ -49,11 +65,21 @@ public final class Ashlar {
             instance = r;
             Bukkit.getPluginManager().registerEvents(r.guard, plugin);
             Bukkit.getPluginManager().registerEvents(r.votes, plugin);
+            Bukkit.getPluginManager().registerEvents(r.bans, plugin);
+            Bukkit.getPluginManager().registerEvents(r.exploits, plugin);
+            Bukkit.getPluginManager().registerEvents(r.auth, plugin);
             r.distance.start(plugin);
             r.votes.start();
+            r.auth.refresh();
+            for (Command c : r.auth.commands()) Bukkit.getCommandMap().register("ashlar", c);
+            r.pregen.start(plugin);
+            r.backup.start();
+            r.startPanel();
+            r.updater.start();
             Bukkit.getCommandMap().register("ashlar", new AshlarCommand(r));
-            LOG.info("Ready: dynamic distance {}, anti-bot {}, spam limit {}, votes {}",
-                onOff(r.cfg.dynDistance), onOff(r.cfg.antiBot), onOff(r.cfg.cmdLimit), r.votes.state);
+            LOG.info("Ready: dynamic distance {}, anti-bot {}, spam limit {}, votes {}, login {}, backups {}, pregen {}",
+                onOff(r.cfg.dynDistance), onOff(r.cfg.antiBot), onOff(r.cfg.cmdLimit), r.votes.state, r.loginState(),
+                r.cfg.backups ? "every " + r.cfg.backupHours + "h" : "off", onOff(r.cfg.pregen));
         } catch (Throwable t) {
             LOG.error("Extras failed to start, the server keeps running without them", t);
         }
@@ -72,17 +98,22 @@ public final class Ashlar {
         }
         out.info("Ashlar for Minecraft {} is running. Paper plugins work as they are.", Bukkit.getMinecraftVersion());
         StartState st = StartState.read(instance);
-        out.info("Multi-version {}   Anti-bot {}   Spam limit {}   Votes {}", st.via, st.antiBot, st.spam, st.votes);
+        out.info("Multi-version {}   Bedrock {}   Anti-bot {}   Spam limit {}   Votes {}", st.via, st.bedrock, st.antiBot, st.spam, st.votes);
+        if (instance != null) {
+            out.info("Login {}   Backups {}   Web panel {}", instance.loginState(),
+                instance.cfg.backups ? "every " + instance.cfg.backupHours + "h" : "off", instance.panel.state);
+        }
         out.info("Settings: ashlar.yml   Commands: /ashlar, /ashlar lag, /ashlar preset <name>");
         out.info("Website: https://craftrank.org/ashlar   Source: https://github.com/Kypersw/ashlar");
         out.info(line);
     }
 
-    private record StartState(String via, String antiBot, String spam, String votes) {
+    private record StartState(String via, String bedrock, String antiBot, String spam, String votes) {
         static StartState read(@org.jspecify.annotations.Nullable Ashlar a) {
             String via = Bukkit.getPluginManager().isPluginEnabled("ViaVersion") ? "on (1.8 to 26.x)" : "off";
-            if (a == null) return new StartState(via, "?", "?", "?");
-            return new StartState(via, onOff(a.cfg.antiBot), onOff(a.cfg.cmdLimit), a.cfg.votes ? "on, port " + a.cfg.votePort : "off");
+            String bedrock = Bukkit.getPluginManager().isPluginEnabled("Geyser-Spigot") ? "on (UDP 19132)" : "off";
+            if (a == null) return new StartState(via, bedrock, "?", "?", "?");
+            return new StartState(via, bedrock, onOff(a.cfg.antiBot), onOff(a.cfg.cmdLimit), a.cfg.votes ? "on, port " + a.cfg.votePort : "off");
         }
     }
 
@@ -90,6 +121,46 @@ public final class Ashlar {
         if (instance == null) return;
         instance.distance.stop();
         instance.votes.stop();
+        instance.pregen.stop();
+        instance.backup.stop();
+        instance.updater.stop();
+        instance.panel.stop();
+    }
+
+    /** What the server logs for a command: login passwords are replaced with stars. */
+    public static String forLog(String command) {
+        String c = command.stripLeading();
+        boolean slash = c.startsWith("/");
+        String body = slash ? c.substring(1) : c;
+        int sp = body.indexOf(' ');
+        if (sp < 0) return command;
+        String label = body.substring(0, sp).toLowerCase(Locale.ROOT);
+        int colon = label.indexOf(':');
+        if (colon >= 0) label = label.substring(colon + 1);
+        if (!Auth.COMMANDS.contains(label)) return command;
+        return (slash ? "/" : "") + body.substring(0, sp) + " ****";
+    }
+
+    String loginState() {
+        if (this.auth.other != null) return "off (" + this.auth.other + " is installed)";
+        return this.auth.active ? "on" : "off";
+    }
+
+    private void startPanel() {
+        String key = this.cfg.panel + "|" + this.cfg.panelHost + "|" + this.cfg.panelPort;
+        if (key.equals(this.panelKey)) return;
+        this.panelKey = key;
+        this.panel.start();
+    }
+
+    boolean getSwitch(String key) {
+        return this.cfg.flag(key);
+    }
+
+    void setSwitch(String key, boolean on) {
+        this.cfg.write(key, on);
+        reload();
+        LOG.info("Web panel turned {} {}", key, onOff(on));
     }
 
     private static String onOff(boolean b) {
@@ -100,6 +171,11 @@ public final class Ashlar {
         this.cfg.load();
         this.distance.start(this.plugin);
         this.votes.start();
+        this.auth.refresh();
+        this.pregen.start(this.plugin);
+        this.backup.start();
+        this.updater.start();
+        startPanel();
     }
 
     List<String> status() {
@@ -118,6 +194,14 @@ public final class Ashlar {
             + ", blocked joins " + this.guard.blockedJoins.get() + ", blocked spam " + this.guard.blockedSpam.get());
         l.add("Votes: " + this.votes.state + ", received " + this.votes.received.get() + ", rejected " + this.votes.rejected.get()
             + ", waiting for offline players " + this.votes.pendingCount());
+        l.add("Exploit guard: " + onOff(this.cfg.exploits) + ", blocked " + this.exploits.blocked.get());
+        l.add("IP bans: " + this.bans.count() + " active, blocked joins " + this.bans.blocked.get()
+            + (this.cfg.vpnCheck ? ", VPN check on, blocked " + this.bans.vpnBlocked.get() : ", VPN check off"));
+        l.add("Login: " + loginState() + (this.auth.active ? ", " + this.auth.accounts() + " accounts" : ""));
+        l.add("Pregen: " + this.pregen.last);
+        l.add("Backups: " + (this.cfg.backups ? "every " + this.cfg.backupHours + "h, last " + this.backup.last : "off"));
+        l.add("Web panel: " + this.panel.state);
+        l.add("Updates: " + this.updater.last);
         return l;
     }
 
@@ -152,7 +236,7 @@ public final class Ashlar {
         private final Ashlar r;
 
         AshlarCommand(Ashlar r) {
-            super("ashlar", "Ashlar status and tools", "/ashlar [status|lag|reload|preset <name>|unlock|token]", List.of("ash"));
+            super("ashlar", "Ashlar status and tools", "/ashlar [status|lag|reload|preset|unlock|token|pregen|backup|bans|ban-ip|unban-ip|unregister|panel|update]", List.of("ash"));
             this.setPermission("ashlar.admin");
             this.r = r;
         }
@@ -188,6 +272,81 @@ public final class Ashlar {
                         s.sendMessage(Component.text("Vote token: " + this.r.cfg.voteToken + "  port: " + this.r.cfg.votePort, NamedTextColor.GRAY));
                     }
                 }
+                case "pregen" -> {
+                    String what = args.length > 1 ? args[1].toLowerCase(Locale.ROOT) : "";
+                    switch (what) {
+                        case "pause" -> this.r.pregen.setPaused(true);
+                        case "resume" -> this.r.pregen.setPaused(false);
+                        case "reset" -> this.r.pregen.reset();
+                        default -> { }
+                    }
+                    s.sendMessage(Component.text("Pregen: " + this.r.pregen.last
+                        + (what.isEmpty() ? "  (/ashlar pregen pause|resume|reset)" : ""), NamedTextColor.GRAY));
+                }
+                case "backup" -> {
+                    if (args.length > 1 && args[1].equalsIgnoreCase("list")) {
+                        List<File> l = this.r.backup.list();
+                        if (l.isEmpty()) s.sendMessage(Component.text("No backups yet.", NamedTextColor.GRAY));
+                        for (File f : l) s.sendMessage(Component.text(" " + f.getName() + "  " + (f.length() >> 20) + " MB", NamedTextColor.GRAY));
+                        return true;
+                    }
+                    s.sendMessage(Component.text("Backing up the worlds...", NamedTextColor.GRAY));
+                    this.r.backup.run(msg -> s.sendMessage(Component.text(msg, msg.startsWith("Backup saved") ? NamedTextColor.GREEN : NamedTextColor.RED)));
+                }
+                case "bans" -> {
+                    List<String> l = this.r.bans.list();
+                    if (l.isEmpty()) s.sendMessage(Component.text("No address is banned.", NamedTextColor.GRAY));
+                    for (String b : l) s.sendMessage(Component.text(" " + b, NamedTextColor.GRAY));
+                }
+                case "ban-ip", "unban-ip" -> {
+                    if (args.length < 2 || !(args[1].matches("\\d{1,3}(\\.\\d{1,3}){3}") || args[1].matches("[0-9A-Fa-f:.]{2,45}") && args[1].contains(":"))) {
+                        s.sendMessage(Component.text("Usage: /ashlar " + sub + " <ip>" + (sub.equals("ban-ip") ? " [minutes]" : ""), NamedTextColor.RED));
+                        return true;
+                    }
+                    String ip;
+                    try {
+                        ip = java.net.InetAddress.getByName(args[1]).getHostAddress();
+                    } catch (Exception e) {
+                        s.sendMessage(Component.text("That is not an IP address.", NamedTextColor.RED));
+                        return true;
+                    }
+                    if (sub.equals("unban-ip")) {
+                        s.sendMessage(Component.text(this.r.bans.unban(ip) ? ip + " unbanned." : ip + " was not banned.", NamedTextColor.GREEN));
+                    } else {
+                        int min = 60 * 24 * 365 * 10;
+                        if (args.length > 2) {
+                            try {
+                                min = Math.max(1, Integer.parseInt(args[2]));
+                            } catch (NumberFormatException e) {
+                                s.sendMessage(Component.text("Minutes must be a number.", NamedTextColor.RED));
+                                return true;
+                            }
+                        }
+                        this.r.bans.ban(ip, min, "by " + s.getName());
+                        for (org.bukkit.entity.Player p : Bukkit.getOnlinePlayers()) {
+                            if (p.getAddress() != null && p.getAddress().getAddress().getHostAddress().equals(ip)) p.kick(Component.text("Your address is banned.", NamedTextColor.RED));
+                        }
+                        s.sendMessage(Component.text(ip + " banned" + (args.length > 2 ? " for " + min + " minutes." : "."), NamedTextColor.GREEN));
+                    }
+                }
+                case "unregister" -> {
+                    if (args.length < 2) {
+                        s.sendMessage(Component.text("Usage: /ashlar unregister <player>", NamedTextColor.RED));
+                        return true;
+                    }
+                    s.sendMessage(Component.text(this.r.auth.unregister(args[1]) ? args[1] + " can register again." : args[1] + " has no account.", NamedTextColor.GREEN));
+                }
+                case "panel" -> {
+                    if (!(s instanceof ConsoleCommandSender)) {
+                        s.sendMessage(Component.text("For safety the panel token is only shown in the console.", NamedTextColor.RED));
+                    } else {
+                        s.sendMessage(Component.text("Web panel: " + this.r.panel.state + "  token: " + this.r.cfg.panelToken, NamedTextColor.GRAY));
+                    }
+                }
+                case "update" -> {
+                    this.r.updater.checkNow();
+                    s.sendMessage(Component.text("Checking GitHub for a newer build. Last result: " + this.r.updater.last, NamedTextColor.GRAY));
+                }
                 case "preset" -> {
                     if (args.length < 2 || !Presets.NAMES.contains(args[1].toLowerCase(Locale.ROOT))) {
                         s.sendMessage(Component.text("Usage: /ashlar preset <" + String.join("|", Presets.NAMES) + ">", NamedTextColor.RED));
@@ -208,8 +367,10 @@ public final class Ashlar {
         @Override
         public List<String> tabComplete(CommandSender s, String alias, String[] args) {
             if (!s.hasPermission("ashlar.admin")) return List.of();
-            if (args.length == 1) return filter(List.of("status", "lag", "reload", "preset", "unlock", "token"), args[0]);
+            if (args.length == 1) return filter(List.of("status", "lag", "reload", "preset", "unlock", "token", "pregen", "backup", "bans", "ban-ip", "unban-ip", "unregister", "panel", "update"), args[0]);
             if (args.length == 2 && args[0].equalsIgnoreCase("preset")) return filter(Presets.NAMES, args[1]);
+            if (args.length == 2 && args[0].equalsIgnoreCase("pregen")) return filter(List.of("pause", "resume", "reset"), args[1]);
+            if (args.length == 2 && args[0].equalsIgnoreCase("backup")) return filter(List.of("list"), args[1]);
             return List.of();
         }
 

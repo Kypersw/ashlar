@@ -26,6 +26,12 @@ jobs:
         run: git config --global user.email "actions@github.com" && git config --global user.name "Github Actions"
       - name: Apply patches
         run: ./gradlew applyAllPatches --stacktrace
+      - name: Build number
+        # the number after the last dash of the tag (v26.2-7 -> 7), or the run number; the updater compares it
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then N="${GITHUB_REF_NAME##*-}"; else N="$GITHUB_RUN_NUMBER"; fi
+          [[ "$N" =~ ^[0-9]+$ ]] || N="$GITHUB_RUN_NUMBER"
+          echo "BUILD_NUMBER=$N" >> "$GITHUB_ENV"
       - name: Build the server jar
         run: ./gradlew :fork-server:createPaperclipJar --stacktrace
       - name: Name the jar
@@ -35,7 +41,7 @@ jobs:
           cp fork-server/build/libs/*-paperclip-*.jar "out/ashlar-$MC.jar"
           cd out && sha256sum "ashlar-$MC.jar" > "ashlar-$MC.jar.sha256"
           echo "MC=$MC" >> "$GITHUB_ENV"
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"; else echo "TAG=v$MC-$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"; fi
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"; else echo "TAG=v$MC-$BUILD_NUMBER" >> "$GITHUB_ENV"; fi
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:

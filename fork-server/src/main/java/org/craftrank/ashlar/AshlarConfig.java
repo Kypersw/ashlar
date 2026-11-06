@@ -34,6 +34,45 @@ public final class AshlarConfig {
     public String voteBroadcast;
     public boolean voteOffline;
 
+    // chunk pre-generation while nobody is online
+    public boolean pregen;
+    public int pregenRadius, pregenParallel;
+    public List<String> pregenWorlds;
+
+    // exploit guards
+    public boolean exploits;
+    public int bookMaxPages, bookMaxPageChars, signMaxChars, tabPerSecond, chunkEntityCap, chunkTntCap;
+
+    // temporary IP bans and the optional VPN/proxy check
+    public boolean autoBan;
+    public int autoBanAfter, autoBanMinutes;
+    public boolean vpnCheck;
+    public String vpnKey;
+    public boolean vpnBlockHosting;
+
+    // login for offline-mode servers
+    public String login;   // auto | on | off
+    public int loginTimeout, loginSessionMinutes, loginMinLength, loginMaxPerIp, loginMaxTries;
+
+    // backups
+    public boolean backups;
+    public int backupHours, backupKeep;
+    public String backupFolder;
+
+    // web panel
+    public boolean panel;
+    public String panelHost;
+    public int panelPort;
+    public String panelToken;
+    public boolean panelCommands;
+
+    // updates
+    public boolean updateCheck, updateDownload;
+    public int updateHours;
+
+    // Bedrock (Geyser + Floodgate)
+    public boolean bedrock;
+
     public AshlarConfig(File file) {
         this.file = file;
     }
@@ -79,6 +118,80 @@ public final class AshlarConfig {
         this.voteOffline = def(y, "votes.reward-offline-players-on-join", true);
         this.voteBroadcast = def(y, "votes.broadcast", "&6%player% &7voted on &6%service% &7and got a reward!");
 
+        this.pregen = def(y, "performance.pregen.enabled", true);
+        this.pregenRadius = Math.max(64, def(y, "performance.pregen.radius-blocks", 1000));
+        this.pregenParallel = Math.max(1, Math.min(32, def(y, "performance.pregen.chunks-at-once", 8)));
+        this.pregenWorlds = defList(y, "performance.pregen.worlds", List.of("world"));
+
+        this.exploits = def(y, "security.exploit-guard.enabled", true);
+        this.bookMaxPages = Math.max(1, def(y, "security.exploit-guard.book-max-pages", 50));
+        this.bookMaxPageChars = Math.max(16, def(y, "security.exploit-guard.book-max-page-chars", 320));
+        this.signMaxChars = Math.max(8, def(y, "security.exploit-guard.sign-max-chars-per-line", 80));
+        this.tabPerSecond = Math.max(2, def(y, "security.exploit-guard.tab-complete-per-second", 15));
+        this.chunkEntityCap = Math.max(50, def(y, "security.exploit-guard.max-entities-per-chunk", 300));
+        this.chunkTntCap = Math.max(10, def(y, "security.exploit-guard.max-tnt-and-falling-blocks-per-chunk", 80));
+
+        this.autoBan = def(y, "security.auto-ban.enabled", true);
+        this.autoBanAfter = Math.max(2, def(y, "security.auto-ban.after-blocked-joins", 20));
+        this.autoBanMinutes = Math.max(1, def(y, "security.auto-ban.minutes", 60));
+        this.vpnCheck = def(y, "security.vpn-check.enabled", false);
+        this.vpnKey = def(y, "security.vpn-check.proxycheck-key", "");
+        this.vpnBlockHosting = def(y, "security.vpn-check.block-hosting-providers", true);
+
+        this.login = def(y, "login.enabled", "auto");
+        this.loginTimeout = Math.max(15, def(y, "login.timeout-seconds", 60));
+        this.loginSessionMinutes = Math.max(0, def(y, "login.session-minutes", 30));
+        this.loginMinLength = Math.max(4, def(y, "login.min-password-length", 6));
+        this.loginMaxPerIp = Math.max(1, def(y, "login.max-accounts-per-ip", 3));
+        this.loginMaxTries = Math.max(1, def(y, "login.max-wrong-passwords", 5));
+
+        this.backups = def(y, "backups.enabled", true);
+        this.backupHours = Math.max(1, def(y, "backups.every-hours", 6));
+        this.backupKeep = Math.max(1, def(y, "backups.keep", 8));
+        this.backupFolder = def(y, "backups.folder", "backups");
+
+        this.panel = def(y, "web-panel.enabled", true);
+        this.panelHost = def(y, "web-panel.host", "127.0.0.1");
+        this.panelPort = def(y, "web-panel.port", 8180);
+        String pt = def(y, "web-panel.token", "");
+        if (pt.isBlank()) {
+            pt = AshlarVotes.newToken();
+            y.set("web-panel.token", pt);
+        }
+        this.panelToken = pt;
+        this.panelCommands = def(y, "web-panel.allow-console-commands", true);
+
+        this.updateCheck = def(y, "updates.check", true);
+        this.updateDownload = def(y, "updates.download", true);
+        this.updateHours = Math.max(1, def(y, "updates.check-every-hours", 12));
+
+        this.bedrock = def(y, "bedrock.enabled", true);
+
+        y.setComments("security.vpn-check", List.of("Asks proxycheck.io whether a new player's address is a VPN, proxy or hosting provider.",
+            "Off by default: it sends that address to proxycheck.io. A free key gives 1000 checks a day."));
+        y.setComments("login", List.of("Register/login for offline-mode (cracked) servers. auto = on only when online-mode is false.",
+            "Bedrock players who join through Floodgate are signed in by Xbox and skip it."));
+        y.setComments("web-panel", List.of("Browser panel: http://host:port. The token signs you in; /ashlar panel shows it in the console.",
+            "Keep host 127.0.0.1 and use an SSH tunnel or an HTTPS reverse proxy to reach it from outside."));
+        y.setComments("updates", List.of("Checks github.com/Kypersw/ashlar for a newer build of the same Minecraft version.",
+            "A download is checked against GitHub's SHA-256 and put in place when the server stops."));
+
+        try {
+            y.save(this.file);
+        } catch (IOException e) {
+            Ashlar.LOG.warn("Could not save ashlar.yml: {}", e.getMessage());
+        }
+    }
+
+    /** A true/false setting straight from the file (used by the web panel). */
+    public boolean flag(String path) {
+        return YamlConfiguration.loadConfiguration(this.file).getBoolean(path);
+    }
+
+    /** Writes one setting to ashlar.yml, keeping the rest; call load() after. */
+    public void write(String path, Object value) {
+        YamlConfiguration y = YamlConfiguration.loadConfiguration(this.file);
+        y.set(path, value);
         try {
             y.save(this.file);
         } catch (IOException e) {

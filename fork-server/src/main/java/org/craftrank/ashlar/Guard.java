@@ -42,6 +42,9 @@ final class Guard implements Listener {
     private final Map<UUID, Rate> chatRate = new ConcurrentHashMap<>();
     final AtomicInteger blockedSpam = new AtomicInteger();
 
+    /** Repeated blocked joins from one address turn into a ban. */
+    Bans bans;
+
     Guard(AshlarConfig cfg, Plugin plugin) {
         this.cfg = cfg;
         this.plugin = plugin;
@@ -94,6 +97,7 @@ final class Guard implements Listener {
 
     private void deny(AsyncPlayerPreLoginEvent e, String msg) {
         this.blockedJoins.incrementAndGet();
+        if (this.bans != null) this.bans.strike(e.getAddress(), "too many blocked joins");
         e.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text(msg, NamedTextColor.RED));
     }
 
