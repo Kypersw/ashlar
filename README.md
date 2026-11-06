@@ -1,5 +1,7 @@
 # Ashlar
 
+**Website and download: https://craftrank.org/ashlar**
+
 A Minecraft server built on Paper, with extra performance, security and quality-of-life features built in.
 Paper plugins work as they are.
 
@@ -14,12 +16,16 @@ Paper plugins work as they are.
 - **Presets**: `/ashlar preset <survival|smp|skyblock|minigames>` writes tuned server.properties, bukkit.yml, spigot.yml and paper-world-defaults.yml (old files are backed up to `ashlar-backup/`). Restart to use them.
 - **Lag report**: `/ashlar lag` lists the busiest chunks and the most common entities.
 - No update checks against PaperMC servers.
+- Its own start message in the console with the state of every feature.
 
 ## Commands (permission `ashlar.admin`)
 `/ashlar` status · `/ashlar lag` · `/ashlar reload` · `/ashlar preset <name>` · `/ashlar unlock` (end anti-bot lockdown) · `/ashlar token` (console only)
 
 ## Settings
 `ashlar.yml` in the server folder. Every feature has its own switch.
+
+## Download
+The ready-to-run jar is on https://craftrank.org/ashlar (with its SHA-256).
 
 ## Running
 Java 25. `java -Xmx4G -jar ashlar-26.2.jar --nogui`
