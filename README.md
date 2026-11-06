@@ -30,3 +30,6 @@ Java 25. `java -Xmx4G -jar ashlar-26.2.jar --nogui`
 ./gradlew :fork-server:createPaperclipJar
 ```
 Our own code is in `fork-server/src/main/java/org/craftrank/ashlar`, changes to Paper are in `fork-server/paper-patches`.
+
+## License
+GPL-3.0, see `LICENSE`. Third-party parts and bundled plugins are listed in `NOTICE.md`.
