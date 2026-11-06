@@ -1,9 +1,10 @@
 name: Release
 
-# Push a tag like v26.2-1 and this builds the server jar and publishes it as a GitHub release.
+# Builds the server jar and publishes it as a GitHub release: push a tag like v26.2-1, or run it by hand.
 on:
   push:
     tags: [ "v*" ]
+  workflow_dispatch:   # or press "Run workflow" in the Actions tab
 
 permissions:
   contents: write
@@ -34,10 +35,14 @@ jobs:
           cp fork-server/build/libs/*-paperclip-*.jar "out/ashlar-$MC.jar"
           cd out && sha256sum "ashlar-$MC.jar" > "ashlar-$MC.jar.sha256"
           echo "MC=$MC" >> "$GITHUB_ENV"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then echo "TAG=$GITHUB_REF_NAME" >> "$GITHUB_ENV"; else echo "TAG=v$MC-$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"; fi
       - name: Publish the release
         uses: softprops/action-gh-release@v2
         with:
-          name: Ashlar ${{ env.MC }} (${{ github.ref_name }})
+          tag_name: ${{ env.TAG }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          name: Ashlar ${{ env.MC }} (${{ env.TAG }})
           body: |
             Ashlar for Minecraft ${{ env.MC }}. Needs Java 25. Players on Java 1.8 to 26.x can join.
             Download `ashlar-${{ env.MC }}.jar` below. More on https://craftrank.org/ashlar
