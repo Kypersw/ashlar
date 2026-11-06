@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Fri, 6 Nov 2026 21:44:26 +0200
+Subject: [PATCH] Ashlar hooks
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 83b8d44c7c8fc3cabb371c4e6ab9e1a9320ead35..519fd2e0f369a7cdc2f247474f62e54dc9a6757e 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -598,11 +598,13 @@ public final class CraftServer implements Server {
+             DefaultPermissions.registerCorePermissions();
+             CraftDefaultPermissions.registerCorePermissions();
+             if (!io.papermc.paper.configuration.GlobalConfiguration.get().misc.loadPermissionsYmlBeforePlugins) this.loadCustomPermissions(); // Paper
++            org.craftrank.ashlar.Ashlar.start(); // Ashlar - built-in extras
+             this.syncCommands();
+         }
+     }
+ 
+     public void disablePlugins() {
++        org.craftrank.ashlar.Ashlar.shutdown(); // Ashlar
+         this.pluginManager.disablePlugins();
+     }
+ 

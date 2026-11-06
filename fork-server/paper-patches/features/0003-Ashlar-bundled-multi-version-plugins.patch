@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Fri, 6 Nov 2026 21:59:47 +0200
+Subject: [PATCH] Ashlar bundled multi-version plugins
+
+
+diff --git a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+index 5741a60faba70da485053599c9370f0e27e868f4..254accfce67ce97609ec9cc3918b6c4a73a7c140 100644
+--- a/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
++++ b/src/main/java/io/papermc/paper/plugin/PluginInitializerManager.java
+@@ -38,6 +38,7 @@ public class PluginInitializerManager {
+         final File configFileLocationBukkit = (File) minecraftOptionSet.valueOf("bukkit-settings");
+ 
+         final Path pluginDirectory = ((File) minecraftOptionSet.valueOf("plugins")).toPath();
++        org.craftrank.ashlar.Bundled.install(pluginDirectory); // Ashlar - built-in multi-version support
+ 
+         final YamlConfiguration configuration = PaperConfigurations.loadLegacyConfigFile(configFileLocationBukkit);
+ 
