@@ -52,14 +52,42 @@ final class Bans implements Listener {
         }
     }
 
-    private synchronized void save() {
+    private volatile boolean dirty;
+    private final java.util.concurrent.ScheduledExecutorService saver = java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+        Thread t = new Thread(r, "Ashlar bans");
+        t.setDaemon(true);
+        return t;
+    });
+    private long logMinute;
+    private int logCount;
+
+    /** Bans can come in thousands during a flood, so the file is written at most every few seconds. */
+    private void save() {
+        if (this.dirty) return;
+        this.dirty = true;
+        this.saver.schedule(this::write, 3, java.util.concurrent.TimeUnit.SECONDS);
+    }
+
+    boolean isBanned(String ip) {
+        Long t = this.until.get(ip);
+        return t != null && t > System.currentTimeMillis();
+    }
+
+    synchronized void write() {
+        this.dirty = false;
         YamlConfiguration y = new YamlConfiguration();
+        StringBuilder txt = new StringBuilder();
         long now = System.currentTimeMillis();
         this.until.forEach((ip, t) -> {
-            if (t > now) y.set(ip.replace('.', '_').replace(':', '-'), t);
+            if (t > now) {
+                y.set(ip.replace('.', '_').replace(':', '-'), t);
+                txt.append(ip).append('\n');
+            }
         });
         try {
             y.save(this.file);
+            // plain list for a firewall (ipset, nftables, iptables) so banned addresses can be dropped before Java
+            java.nio.file.Files.writeString(java.nio.file.Path.of("ashlar-blocked-ips.txt"), txt.toString());
         } catch (IOException e) {
             Ashlar.LOG.warn("Could not save ashlar-bans.yml: {}", e.getMessage());
         }
@@ -69,7 +97,15 @@ final class Bans implements Listener {
         this.until.put(ip, System.currentTimeMillis() + minutes * 60_000L);
         this.strikes.remove(ip);
         save();
-        Ashlar.LOG.warn("Banned {} for {} minutes ({})", ip, minutes, why);
+        long min = System.currentTimeMillis() / 60_000;
+        synchronized (this) {
+            if (min != this.logMinute) {
+                if (this.logCount > 20) Ashlar.LOG.warn("... and {} more addresses banned in the last minute", this.logCount - 20);
+                this.logMinute = min;
+                this.logCount = 0;
+            }
+            if (++this.logCount <= 20) Ashlar.LOG.warn("Banned {} for {} minutes ({})", ip, minutes, why);
+        }
     }
 
     boolean unban(String ip) {

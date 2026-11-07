@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Sat, 7 Nov 2026 02:38:58 +0200
+Subject: [PATCH] Ashlar plugin command guard
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 519fd2e0f369a7cdc2f247474f62e54dc9a6757e..61f307610e82fd506ac0e0c1a2da470690157b8c 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -919,6 +919,7 @@ public final class CraftServer implements Server {
+         Preconditions.checkArgument(rawSender != null, "sender cannot be null");
+         Preconditions.checkArgument(commandLine != null, "commandLine cannot be null");
+         org.spigotmc.AsyncCatcher.catchOp("Command Dispatched Async: " + commandLine); // Spigot // Paper - Include command in error message
++        if (!org.craftrank.ashlar.PluginGuard.allowCommand(rawSender, commandLine)) return false; // Ashlar - plugins cannot hand out full permissions
+         CommandSourceStack sourceStack = VanillaCommandWrapper.getListener(rawSender);
+ 
+         String command = StringUtils.normalizeSpace(commandLine.trim());

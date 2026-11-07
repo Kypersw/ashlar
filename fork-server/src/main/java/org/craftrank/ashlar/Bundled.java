@@ -110,6 +110,12 @@ public final class Bundled {
                 now.add(jar);
             }
             Files.write(marker, now, StandardCharsets.UTF_8);
+
+            // the plugin guard must be on before any plugin code runs
+            AshlarConfig cfg = new AshlarConfig(cfgFile);
+            cfg.load();
+            PluginGuard.configure(cfg);
+            if (cfg.pluginGuard && cfg.pluginGuardScan) PluginScan.scan(plugins, now);
         } catch (IOException e) {
             Ashlar.LOG.warn("Could not set up the bundled plugins: {}", e.getMessage());
         }

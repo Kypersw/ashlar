@@ -18,6 +18,8 @@ Paper plugins work as they are.
 - **Bedrock players**: Geyser and Floodgate (MIT) are downloaded from GeyserMC on first start, checked against their SHA-256 and kept up to date. Bedrock players join on port 19132 and skip the login. Turn off with `bedrock.enabled: false`.
 - **Login for offline servers**: `/register` and `/login` when `online-mode=false`. Passwords are stored as PBKDF2-SHA256 hashes, never written to the log, and a player who is not signed in cannot move, chat, use commands or take damage. Steps aside when AuthMe, nLogin, LibreLogin or a similar plugin is installed.
 - **Exploit guard**: blocks oversized books and signs, limits tab-complete spam and caps entities and TNT per chunk.
+- **Plugin backdoor guard**: a plugin cannot make a player an operator or give out every permission (`op`, `lp ... permission set *` and similar) unless you list it in `security.plugin-guard.allowed-plugins`. This is how most backdoors in leaked plugins work. On start every plugin jar is checked for code that runs programs on the machine, downloads code, or hides a web address (for example in Base64), and the console logs which outside addresses each plugin connects to. `/ashlar plugins` shows the report.
+- **Connection flood protection**: every new connection is checked before Minecraft does any work for it. Banned addresses are dropped at once, each address has a limit on new and open connections, silent connections are closed after a few seconds and a connection that sends too much before joining is cut. When the whole server gets too many new connections, only players who joined before get in until it calms down (`/ashlar unlock` ends it early). In our test 16,000 connections in 12 seconds from one address were all dropped while a known player joined. Banned addresses are written to `ashlar-blocked-ips.txt` for a firewall. This does not replace network-level DDoS protection from your host: a flood that fills the line never reaches the server. Turns itself off behind BungeeCord, Velocity or the PROXY protocol.
 - **IP bans**: an address that keeps getting blocked is banned for a while (`ashlar-bans.yml`, kept across restarts). Optional VPN/proxy check through proxycheck.io, off by default.
 - **Chunk pre-generation**: generates the area around spawn while nobody is online and the server is idle, and pauses when a player joins.
 - **Automatic backups**: zips the worlds every few hours into `backups/`, keeps the newest ones, and skips the run when the disk is nearly full.
@@ -38,6 +40,7 @@ Paper plugins work as they are.
 | `/ashlar bans`, `ban-ip <ip> [minutes]`, `unban-ip <ip>` | IP bans |
 | `/ashlar unregister <player>` | Remove a login account |
 | `/ashlar update` | Check for a newer build now |
+| `/ashlar plugins` | Plugin guard report |
 | `/ashlar token`, `/ashlar panel` | Vote and panel tokens (console only) |
 
 ## Settings

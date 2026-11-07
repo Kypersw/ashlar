@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Sat, 7 Nov 2026 02:38:53 +0200
+Subject: [PATCH] Ashlar plugin op guard
+
+
+diff --git a/net/minecraft/server/players/PlayerList.java b/net/minecraft/server/players/PlayerList.java
+index baec5d072b8f2d9379dba850b04e881e5267ca6b..ceb61b682237f7ca2a8527dbd479c704fddbccd0 100644
+--- a/net/minecraft/server/players/PlayerList.java
++++ b/net/minecraft/server/players/PlayerList.java
+@@ -826,6 +826,7 @@ public abstract class PlayerList {
+     }
+ 
+     public void op(final NameAndId nameAndId, final Optional<LevelBasedPermissionSet> permissions, final Optional<Boolean> canBypassPlayerLimit) {
++        if (!org.craftrank.ashlar.PluginGuard.allowOp(nameAndId.name())) return; // Ashlar - plugins cannot give op on their own
+         this.ops
+             .add(
+                 new ServerOpListEntry(

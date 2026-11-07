@@ -9,6 +9,8 @@ const NAMES = {
   'security.exploit-guard.enabled': 'Exploit guard',
   'security.auto-ban.enabled': 'Auto-ban repeat offenders',
   'security.vpn-check.enabled': 'VPN and proxy check',
+  'security.connection-guard.enabled': 'Connection flood protection',
+  'security.plugin-guard.enabled': 'Plugin backdoor protection',
   'votes.enabled': 'Vote listener',
   'backups.enabled': 'Automatic backups',
   'updates.check': 'Check for updates'

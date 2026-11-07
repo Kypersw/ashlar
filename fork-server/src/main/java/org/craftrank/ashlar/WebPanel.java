@@ -45,7 +45,7 @@ final class WebPanel {
     /** Switches the panel may flip; anything else in ashlar.yml stays file-only. */
     private static final List<String> SWITCHES = List.of("performance.dynamic-distance.enabled", "performance.pregen.enabled",
         "security.anti-bot.enabled", "security.spam-limit.enabled", "security.hide-plugins.enabled", "security.exploit-guard.enabled",
-        "security.auto-ban.enabled", "security.vpn-check.enabled", "votes.enabled", "backups.enabled", "updates.check");
+        "security.auto-ban.enabled", "security.vpn-check.enabled", "security.connection-guard.enabled", "security.plugin-guard.enabled", "votes.enabled", "backups.enabled", "updates.check");
 
     private final Ashlar a;
     private final AshlarConfig cfg;

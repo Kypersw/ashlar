@@ -37,7 +37,12 @@ public final class Ashlar {
     final Backup backup;
     private final WebPanel panel;
     private final Updater updater;
+    private final ConnGuard conns;
     private String panelKey = "";
+
+    static @org.jspecify.annotations.Nullable Plugin plugin() {
+        return instance == null ? null : instance.plugin;
+    }
 
     private Ashlar(Plugin plugin) {
         this.plugin = plugin;
@@ -54,6 +59,7 @@ public final class Ashlar {
         this.backup = new Backup(this.cfg, plugin);
         this.panel = new WebPanel(this, this.cfg, plugin);
         this.updater = new Updater(this.cfg, plugin);
+        this.conns = new ConnGuard(this.cfg, this.bans);
     }
 
     /** Called from the server once, after the worlds are loaded. */
@@ -68,6 +74,10 @@ public final class Ashlar {
             Bukkit.getPluginManager().registerEvents(r.bans, plugin);
             Bukkit.getPluginManager().registerEvents(r.exploits, plugin);
             Bukkit.getPluginManager().registerEvents(r.auth, plugin);
+            Bukkit.getPluginManager().registerEvents(r.conns, plugin);
+            PluginGuard.configure(r.cfg);
+            r.conns.start();
+            Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, r.conns::saveKnown, 6000L, 6000L);
             r.distance.start(plugin);
             r.votes.start();
             r.auth.refresh();
@@ -125,6 +135,8 @@ public final class Ashlar {
         instance.backup.stop();
         instance.updater.stop();
         instance.panel.stop();
+        instance.conns.stop();
+        instance.bans.write();
     }
 
     /** What the server logs for a command: login passwords are replaced with stars. */
@@ -172,6 +184,7 @@ public final class Ashlar {
         this.distance.start(this.plugin);
         this.votes.start();
         this.auth.refresh();
+        PluginGuard.configure(this.cfg);
         this.pregen.start(this.plugin);
         this.backup.start();
         this.updater.start();
@@ -197,6 +210,8 @@ public final class Ashlar {
         l.add("Exploit guard: " + onOff(this.cfg.exploits) + ", blocked " + this.exploits.blocked.get());
         l.add("IP bans: " + this.bans.count() + " active, blocked joins " + this.bans.blocked.get()
             + (this.cfg.vpnCheck ? ", VPN check on, blocked " + this.bans.vpnBlocked.get() : ", VPN check off"));
+        l.add("Connection guard: " + this.conns.state());
+        l.add("Plugin guard: " + PluginGuard.status());
         l.add("Login: " + loginState() + (this.auth.active ? ", " + this.auth.accounts() + " accounts" : ""));
         l.add("Pregen: " + this.pregen.last);
         l.add("Backups: " + (this.cfg.backups ? "every " + this.cfg.backupHours + "h, last " + this.backup.last : "off"));
@@ -236,7 +251,7 @@ public final class Ashlar {
         private final Ashlar r;
 
         AshlarCommand(Ashlar r) {
-            super("ashlar", "Ashlar status and tools", "/ashlar [status|lag|reload|preset|unlock|token|pregen|backup|bans|ban-ip|unban-ip|unregister|panel|update]", List.of("ash"));
+            super("ashlar", "Ashlar status and tools", "/ashlar [status|lag|reload|preset|unlock|token|pregen|backup|bans|ban-ip|unban-ip|unregister|panel|update|plugins]", List.of("ash"));
             this.setPermission("ashlar.admin");
             this.r = r;
         }
@@ -263,6 +278,7 @@ public final class Ashlar {
                 }
                 case "unlock" -> {
                     this.r.guard.endLockdown();
+                    this.r.conns.endAttack();
                     s.sendMessage(Component.text("Anti-bot lockdown ended, new players can join.", NamedTextColor.GREEN));
                 }
                 case "token" -> {
@@ -343,6 +359,10 @@ public final class Ashlar {
                         s.sendMessage(Component.text("Web panel: " + this.r.panel.state + "  token: " + this.r.cfg.panelToken, NamedTextColor.GRAY));
                     }
                 }
+                case "plugins" -> {
+                    s.sendMessage(Component.text("Ashlar plugin guard", NamedTextColor.GOLD));
+                    for (String line : PluginGuard.report()) s.sendMessage(Component.text(" " + line, NamedTextColor.GRAY));
+                }
                 case "update" -> {
                     this.r.updater.checkNow();
                     s.sendMessage(Component.text("Checking GitHub for a newer build. Last result: " + this.r.updater.last, NamedTextColor.GRAY));
@@ -367,7 +387,7 @@ public final class Ashlar {
         @Override
         public List<String> tabComplete(CommandSender s, String alias, String[] args) {
             if (!s.hasPermission("ashlar.admin")) return List.of();
-            if (args.length == 1) return filter(List.of("status", "lag", "reload", "preset", "unlock", "token", "pregen", "backup", "bans", "ban-ip", "unban-ip", "unregister", "panel", "update"), args[0]);
+            if (args.length == 1) return filter(List.of("status", "lag", "reload", "preset", "unlock", "token", "pregen", "backup", "bans", "ban-ip", "unban-ip", "unregister", "panel", "update", "plugins"), args[0]);
             if (args.length == 2 && args[0].equalsIgnoreCase("preset")) return filter(Presets.NAMES, args[1]);
             if (args.length == 2 && args[0].equalsIgnoreCase("pregen")) return filter(List.of("pause", "resume", "reset"), args[1]);
             if (args.length == 2 && args[0].equalsIgnoreCase("backup")) return filter(List.of("list"), args[1]);

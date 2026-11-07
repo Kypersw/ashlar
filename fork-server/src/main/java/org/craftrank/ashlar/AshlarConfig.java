@@ -45,6 +45,10 @@ public final class AshlarConfig {
 
     // temporary IP bans and the optional VPN/proxy check
     public boolean autoBan;
+    public boolean pluginGuard, pluginGuardBlockOp, pluginGuardNet, pluginGuardScan;
+    public List<String> pluginGuardAllowed = List.of();
+    public boolean connGuard;
+    public int connPerIpPerSecond, connOpenPerIp, connAttackPerSecond, connAttackMinutes, connFirstPacketSeconds, connMaxBytesPerSecond;
     public int autoBanAfter, autoBanMinutes;
     public boolean vpnCheck;
     public String vpnKey;
@@ -134,6 +138,30 @@ public final class AshlarConfig {
         this.autoBan = def(y, "security.auto-ban.enabled", true);
         this.autoBanAfter = Math.max(2, def(y, "security.auto-ban.after-blocked-joins", 20));
         this.autoBanMinutes = Math.max(1, def(y, "security.auto-ban.minutes", 60));
+
+        this.pluginGuard = def(y, "security.plugin-guard.enabled", true);
+        this.pluginGuardBlockOp = def(y, "security.plugin-guard.block-op-and-full-permissions", true);
+        this.pluginGuardAllowed = defList(y, "security.plugin-guard.allowed-plugins", List.of());
+        this.pluginGuardScan = def(y, "security.plugin-guard.check-jars-on-start", true);
+        this.pluginGuardNet = def(y, "security.plugin-guard.log-outside-connections", true);
+        y.setComments("security.plugin-guard", List.of(
+            "Stops plugins from making players operators or giving them every permission (how most backdoors in leaked plugins work).",
+            "On start it also checks plugin jars for code that runs programs, downloads code or hides web addresses, and it logs",
+            "which outside addresses each plugin connects to. Put plugins that really need to give op in allowed-plugins."));
+
+        this.connGuard = def(y, "security.connection-guard.enabled", true);
+        this.connPerIpPerSecond = Math.max(1, def(y, "security.connection-guard.new-connections-per-ip-per-second", 6));
+        this.connOpenPerIp = Math.max(1, def(y, "security.connection-guard.open-connections-per-ip", 20));
+        this.connAttackPerSecond = Math.max(10, def(y, "security.connection-guard.attack-at-new-connections-per-second", 150));
+        this.connAttackMinutes = Math.max(1, def(y, "security.connection-guard.attack-mode-minutes", 2));
+        this.connFirstPacketSeconds = Math.max(1, def(y, "security.connection-guard.silent-connection-seconds", 5));
+        this.connMaxBytesPerSecond = Math.max(4096, def(y, "security.connection-guard.max-bytes-per-second-before-join", 131072));
+        y.setComments("security.connection-guard", List.of(
+            "Connection flood protection, checked before Minecraft reads anything. Banned addresses are dropped at once,",
+            "each address has a limit on new and open connections, and silent or very chatty connections are closed.",
+            "Above attack-at-new-connections-per-second only players who joined before can connect for a few minutes.",
+            "Off by itself behind BungeeCord/Velocity. Floods that fill the network line must be stopped by your host;",
+            "ashlar-blocked-ips.txt lists banned addresses for a firewall."));
         this.vpnCheck = def(y, "security.vpn-check.enabled", false);
         this.vpnKey = def(y, "security.vpn-check.proxycheck-key", "");
         this.vpnBlockHosting = def(y, "security.vpn-check.block-hosting-providers", true);

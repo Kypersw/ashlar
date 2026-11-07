@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kypersw <dersimizkral@gmail.com>
+Date: Sat, 7 Nov 2026 03:03:39 +0200
+Subject: [PATCH] Ashlar connection guard hook
+
+
+diff --git a/net/minecraft/server/network/ServerConnectionListener.java b/net/minecraft/server/network/ServerConnectionListener.java
+index e84e243f35b09691d03e9a9cf3de0c093b1d5cfb..498ab80c0e2e30137137818e430ee7941751509c 100644
+--- a/net/minecraft/server/network/ServerConnectionListener.java
++++ b/net/minecraft/server/network/ServerConnectionListener.java
+@@ -92,6 +92,7 @@ public class ServerConnectionListener {
+                             new ChannelInitializer<Channel>() {
+                                 @Override
+                                 protected void initChannel(final Channel channel) {
++                                    if (!org.craftrank.ashlar.ConnGuard.allow(channel)) { channel.config().setAutoRead(false); channel.close(); return; } // Ashlar - drop floods before any work is done
+                                     try {
+                                         channel.config().setOption(ChannelOption.TCP_NODELAY, true);
+                                     } catch (ChannelException var5) {
